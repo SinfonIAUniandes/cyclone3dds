@@ -39,6 +39,9 @@ void ddsi_spdp_unregister_participant (struct spdp_admin *adm, const struct ddsi
 dds_return_t ddsi_spdp_ref_locator (struct spdp_admin *adm, const ddsi_xlocator_t *xloc, bool discovered)
   ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
+dds_return_t ddsi_spdp_add_peer_host (struct spdp_admin *adm, const ddsi_locator_t *source)
+  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
+
 void ddsi_spdp_unref_locator (struct spdp_admin *adm, const ddsi_xlocator_t *xloc, bool on_lease_expiry)
   ddsrt_nonnull_all;
 

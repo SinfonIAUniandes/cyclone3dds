@@ -2096,12 +2096,36 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
     if (pwr) guid = pwr->e.guid; else memset (&guid, 0, sizeof (guid));
     if (get_serdata_result != DDS_RETCODE_NO_DATA)
     {
+      char payload_hex[3 * 36 + 1];
+      size_t payload_hex_length = 0;
+      uint32_t payload_offset = 0;
+      const uint32_t payload_limit = sampleinfo->size < 36 ? sampleinfo->size : 36;
+      for (const struct ddsi_rdata *frag = fragchain;
+           frag != NULL && payload_offset < payload_limit;
+           frag = frag->nextfrag)
+      {
+        if (frag->maxp1 > payload_offset)
+        {
+          const unsigned char *payload = DDSI_RMSG_PAYLOADOFF (
+            frag->rmsg, DDSI_RDATA_PAYLOAD_OFF (frag));
+          uint32_t frag_end = frag->maxp1 < payload_limit ? frag->maxp1 : payload_limit;
+          while (payload_offset < frag_end && payload_hex_length + 3 < sizeof (payload_hex))
+          {
+            payload_hex_length += (size_t) snprintf (
+              payload_hex + payload_hex_length,
+              sizeof (payload_hex) - payload_hex_length,
+              "%02x", payload[payload_offset - frag->min]);
+            payload_offset++;
+          }
+        }
+      }
+      payload_hex[payload_hex_length] = '\0';
       DDS_CWARNING (&gv->logconfig,
-                    "data(application, vendor %u.%u): "PGUIDFMT" #%"PRIu64": deserialization %s/%s failed (%s)\n",
+                    "data(application, vendor %u.%u): "PGUIDFMT" #%"PRIu64": deserialization %s/%s failed (%s), size=%"PRIu32" payload=%s\n",
                     sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
                     PGUID (guid), sampleinfo->seq,
                     pwr && (pwr->c.xqos->present & DDSI_QP_TOPIC_NAME) ? pwr->c.xqos->topic_name : "", type->type_name,
-                    failmsg ? failmsg : "for reasons unknown");
+                    failmsg ? failmsg : "unknown", sampleinfo->size, payload_hex);
     }
   }
   else

@@ -637,6 +637,10 @@ static enum handle_spdp_result handle_spdp_alive (const struct ddsi_receiver_sta
   }
   else
   {
+#if DDSRT_WITH_NINTENDO_3DS
+    if (!ddsi_is_unspec_locator (&rst->pktinfo.src))
+      (void) ddsi_spdp_add_peer_host (gv->spdp_schedule, &rst->pktinfo.src);
+#endif
     /* Force transmission of SPDP messages - we're not very careful
        in avoiding the processing of SPDP packets addressed to others
        so filter here */

@@ -550,6 +550,65 @@ dds_return_t ddsi_spdp_ref_locator (struct spdp_admin *adm, const ddsi_xlocator_
   return ret;
 }
 
+static dds_return_t add_persistent_peer_xlocator (struct spdp_admin *adm, const ddsi_xlocator_t *xloc)
+{
+  dds_return_t ret = DDS_RETCODE_OK;
+  union spdp_loc_union *n;
+  const ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
+  ddsrt_mutex_lock (&adm->lock);
+  ddsrt_avl_ipath_t ip;
+  if ((n = ddsrt_avl_lookup (&spdp_loc_td, &adm->live, xloc)) != NULL)
+  {
+    n->c.discovered = false;
+    n->c.tprune = DDSRT_MTIME_NEVER;
+  }
+  else if ((n = ddsrt_avl_lookup_ipath (&spdp_loc_td, &adm->aging, xloc, &ip)) != NULL)
+  {
+    n->c.discovered = false;
+    n->c.tprune = DDSRT_MTIME_NEVER;
+    n->aging.tsched = tnow;
+  }
+  else if ((n = ddsrt_malloc_s (sizeof (*n))) != NULL)
+  {
+    n->c.xloc = *xloc;
+    n->c.discovered = false;
+    n->c.tprune = DDSRT_MTIME_NEVER;
+    n->aging.tsched = tnow;
+    ddsrt_avl_insert_ipath (&spdp_loc_td, &adm->aging, n, &ip);
+  }
+  else
+  {
+    ret = DDS_RETCODE_OUT_OF_RESOURCES;
+  }
+  ddsrt_mutex_unlock (&adm->lock);
+  if (ret == DDS_RETCODE_OK)
+    ddsi_resched_xevent_if_earlier (adm->aging_xev, tnow);
+  return ret;
+}
+
+dds_return_t ddsi_spdp_add_peer_host (struct spdp_admin *adm, const ddsi_locator_t *source)
+{
+  struct ddsi_domaingv * const gv = adm->gv;
+  if (source->kind != DDSI_LOCATOR_KIND_UDPv4 || ddsi_is_unspec_locator (source) || ddsi_is_mcaddr (gv, source))
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  size_t interf_idx;
+  if (ddsi_is_nearby_address (gv, source, (size_t) gv->n_interfaces, gv->interfaces, &interf_idx) != DNAR_LOCAL)
+    return DDS_RETCODE_BAD_PARAMETER;
+  if (!ddsi_factory_supports (gv->xmit_conns_meta[interf_idx]->m_factory, source->kind))
+    return DDS_RETCODE_UNSUPPORTED;
+
+  ddsi_locator_t locator = *source;
+  dds_return_t ret = DDS_RETCODE_OK;
+  for (int32_t index = 0; index <= gv->config.maxAutoParticipantIndex && ret == DDS_RETCODE_OK; index++)
+  {
+    locator.port = ddsi_get_port (&gv->config, DDSI_PORT_UNI_DISC, index);
+    const ddsi_xlocator_t xloc = { .conn = gv->xmit_conns_meta[interf_idx], .c = locator };
+    ret = add_persistent_peer_xlocator (adm, &xloc);
+  }
+  return ret;
+}
+
 void ddsi_spdp_unref_locator (struct spdp_admin *adm, const ddsi_xlocator_t *xloc, bool on_lease_expiry)
 {
   union spdp_loc_union *n;

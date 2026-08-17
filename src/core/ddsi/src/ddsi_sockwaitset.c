@@ -1159,13 +1159,21 @@ struct ddsi_sock_waitset_ctx * ddsi_sock_waitset_wait (struct ddsi_sock_waitset 
 #endif /* !DDSI_WAITSET_NO_TRIGGER */
 
   dds_return_t rc;
+#if DDSRT_WITH_NINTENDO_3DS
+  const fd_set requested = *rdset;
+#endif
   do
   {
   #if DDSRT_WITH_NINTENDO_3DS
+    *rdset = requested;
     rc = ddsrt_select (fdmax, rdset, NULL, NULL, DDS_MSECS (100));
   #else
     rc = ddsrt_select (fdmax, rdset, NULL, NULL, DDS_INFINITY);
   #endif
+    if (rc == DDS_RETCODE_TIMEOUT)
+    {
+      break;
+    }
     if (rc < 0 && rc != DDS_RETCODE_INTERRUPTED && rc != DDS_RETCODE_TRY_AGAIN)
     {
       DDS_WARNING("ddsi_sock_waitset_wait: select failed, retcode = %"PRId32, rc);

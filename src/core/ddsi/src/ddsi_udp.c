@@ -466,14 +466,24 @@ static dds_return_t setsockopt_pktinfo (struct ddsi_domaingv const * const gv, d
 static dds_return_t set_socket_buffer (struct ddsi_domaingv const * const gv, ddsrt_socket_t sock, int32_t socket_option, const char *socket_option_name, const char *name, const struct ddsi_config_socket_buf_size *config, uint32_t default_min_size)
 {
 #if DDSRT_WITH_NINTENDO_3DS
-  /* The 3DS SOC service exposes buffer options but cannot reliably query them. */
-  (void) gv;
-  (void) sock;
-  (void) socket_option;
+  /* The SOC service can't query these options, but it may accept a requested size. */
+  const uint32_t socket_req_buf_size =
+    (!config->max.isdefault && config->max.value > 0) ? config->max.value
+    : (!config->min.isdefault && config->min.value > 0) ? config->min.value
+    : default_min_size;
+  const dds_return_t rc = ddsrt_setsockopt (sock, SOL_SOCKET, socket_option,
+                                            &socket_req_buf_size, sizeof (socket_req_buf_size));
+  if (rc != DDS_RETCODE_OK)
+  {
+    GVLOG (DDS_LC_CONFIG, "cannot set socket %s buffer to %"PRIu32" bytes: %s; using service default\n",
+           name, socket_req_buf_size, dds_strretcode (rc));
+  }
+  else
+  {
+    GVLOG (DDS_LC_CONFIG, "socket %s buffer requested at %"PRIu32" bytes\n",
+           name, socket_req_buf_size);
+  }
   (void) socket_option_name;
-  (void) config;
-  (void) default_min_size;
-  GVLOG (DDS_LC_CONFIG, "socket %s buffer size unavailable on Nintendo 3DS; using service default\n", name);
   return DDS_RETCODE_OK;
 #else
   // if (min, max)=   and   initbuf=   then  request=  and  result=
