@@ -117,7 +117,19 @@ set(sources
 # that the network stack to be used is lwIP as opposed to the target native
 # network stack. In order to mix-and-match various compilers, architectures,
 # operating systems, etc input from the build system is required.
-if(WITH_LWIP)
+if(WITH_NINTENDO_3DS)
+  set(CMAKE_EXTRA_INCLUDE_FILES "3ds/services/soc.h")
+  set(hostname_header "3ds/services/soc.h")
+  set(inet_header "arpa/inet.h")
+  set(netdb_header "netdb.h")
+  set(sockopt_header "netinet/in.h")
+  list(APPEND headers
+    "${source_dir}/include/dds/ddsrt/sockets/3ds.h")
+  list(APPEND sources
+    "${source_dir}/src/ifaddrs/3ds/ifaddrs.c"
+    "${source_dir}/src/sockets/3ds/socket.c"
+    "${source_dir}/src/sockets/3ds/gethostname.c")
+elseif(WITH_LWIP)
   set(CMAKE_EXTRA_INCLUDE_FILES "ws2tcpip.h")
   set(hostname_header "unistd.h")
   set(inet_header "lwip/sockets.h")
@@ -232,7 +244,31 @@ else()
   message(STATUS "Building without support for cond_timewait using different clocks")
 endif()
 
-if(WITH_FREERTOS)
+if(WITH_NINTENDO_3DS)
+  set(DDSRT_HAVE_GETHOSTNAME TRUE)
+  set(DDSRT_HAVE_INET_NTOP TRUE)
+  set(DDSRT_HAVE_INET_PTON TRUE)
+  set(DDSRT_HAVE_GETADDRINFO FALSE)
+  set(DDSRT_HAVE_GETHOSTBYNAME_R FALSE)
+  set(DDSRT_HAVE_DNS FALSE)
+  set(DDSRT_HAVE_DYNLIB FALSE)
+  set(DDSRT_HAVE_FILESYSTEM FALSE)
+  set(DDSRT_HAVE_NETSTAT FALSE)
+  set(DDSRT_HAVE_RUSAGE FALSE)
+
+  list(APPEND headers
+    "${source_dir}/include/dds/ddsrt/sync/3ds.h"
+    "${source_dir}/include/dds/ddsrt/threads/3ds.h"
+    "${source_dir}/include/dds/ddsrt/types/posix.h")
+  list(APPEND sources
+    "${source_dir}/src/environ/posix/environ.c"
+    "${source_dir}/src/heap/posix/heap.c"
+    "${source_dir}/src/process/3ds/process.c"
+    "${source_dir}/src/random/3ds/random.c"
+    "${source_dir}/src/sync/3ds/sync.c"
+    "${source_dir}/src/threads/3ds/threads.c"
+    "${source_dir}/src/time/3ds/time.c")
+elseif(WITH_FREERTOS)
   list(APPEND headers
     "${source_dir}/include/dds/ddsrt/sync/freertos.h"
     "${source_dir}/include/dds/ddsrt/threads/freertos.h")
@@ -384,6 +420,7 @@ endif()
 # Generate configuration file
 set(DDSRT_WITH_LWIP ${WITH_LWIP})
 set(DDSRT_WITH_FREERTOS ${WITH_FREERTOS})
+set(DDSRT_WITH_NINTENDO_3DS ${WITH_NINTENDO_3DS})
 
 foreach(feature TCP_TLS SECURITY LIFESPAN DEADLINE_MISSED NETWORK_PARTITIONS
                 TYPELIB TYPE_DISCOVERY TOPIC_DISCOVERY QOS_PROVIDER TCP FAKEUDP)

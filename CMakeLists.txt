@@ -69,6 +69,11 @@ option(BUILD_DDSPERF "Build ddsperf tool" ${not_crosscompiling})
 option(INSTALL_XMLTYPE "Install xmltype tool" OFF)
 
 option(WITH_ZEPHYR "Build for Zephyr RTOS" OFF)
+option(WITH_NINTENDO_3DS "Build for Nintendo 3DS with libctru" OFF)
+
+if(WITH_NINTENDO_3DS AND NOT CMAKE_CROSSCOMPILING)
+  message(FATAL_ERROR "WITH_NINTENDO_3DS requires a devkitARM cross-compiling toolchain")
+endif()
 
 # Check if IDLC is already in the PATH
 find_library(_idlc_backend "cycloneddsidlc" NO_CMAKE_FIND_ROOT_PATH)

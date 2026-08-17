@@ -770,6 +770,12 @@ int ddsi_sock_waitset_next_event (struct ddsi_sock_waitset_ctx * ctx, struct dds
 
 #elif MODE_SEL == MODE_SELECT
 
+#if defined(LWIP_SOCKET) || DDSRT_WITH_NINTENDO_3DS
+#define DDSI_WAITSET_NO_TRIGGER 1
+#else
+#define DDSI_WAITSET_NO_TRIGGER 0
+#endif
+
 #ifdef __VXWORKS__
 #include <pipeDrv.h>
 #include <ioLib.h>
@@ -778,7 +784,7 @@ int ddsi_sock_waitset_next_event (struct ddsi_sock_waitset_ctx * ctx, struct dds
 #define OSPL_PIPENAMESIZE 26
 #endif
 
-#if !_WIN32 && !LWIP_SOCKET && !__ZEPHYR__
+#if !_WIN32 && !DDSI_WAITSET_NO_TRIGGER && !__ZEPHYR__
 
 #if ! __VXWORKS__&& !__QNXNTO__
 #include <sys/fcntl.h>
@@ -793,7 +799,7 @@ int ddsi_sock_waitset_next_event (struct ddsi_sock_waitset_ctx * ctx, struct dds
 #include <fcntl.h>
 #endif
 
-#endif /* !_WIN32 && !LWIP_SOCKET && !__ZEPHYR__ */
+#endif /* !_WIN32 && !DDSI_WAITSET_NO_TRIGGER && !__ZEPHYR__ */
 
 typedef struct ddsi_sock_waitset_set
 {
@@ -893,7 +899,7 @@ static int make_pipe (int pfd[2])
   }
   return res;
 }
-#elif !defined(LWIP_SOCKET)
+#elif !DDSI_WAITSET_NO_TRIGGER
 static int make_pipe (int pfd[2])
 {
   return pipe (pfd);
@@ -939,7 +945,7 @@ struct ddsi_sock_waitset * ddsi_sock_waitset_new (void)
   ws->fdmax_plus_1 = FD_SETSIZE;
 #endif
 
-#if defined(LWIP_SOCKET)
+#if DDSI_WAITSET_NO_TRIGGER
   ws->pipe[0] = -1;
   ws->pipe[1] = -1;
   result = 0;
@@ -954,18 +960,18 @@ struct ddsi_sock_waitset * ddsi_sock_waitset_new (void)
     return NULL;
   }
 
-#if !defined(LWIP_SOCKET)
+#if !DDSI_WAITSET_NO_TRIGGER
   ws->set.fds[0] = ws->pipe[0];
 #else
   ws->set.fds[0] = 0;
 #endif
   ws->set.conns[0] = NULL;
 
-#if !defined(__VXWORKS__) && !defined(_WIN32) && !defined(LWIP_SOCKET) && !defined(__QNXNTO__) && !defined(__ZEPHYR__)
+#if !defined(__VXWORKS__) && !defined(_WIN32) && !DDSI_WAITSET_NO_TRIGGER && !defined(__QNXNTO__) && !defined(__ZEPHYR__)
   (void) fcntl (ws->pipe[0], F_SETFD, fcntl (ws->pipe[0], F_GETFD) | FD_CLOEXEC);
   (void) fcntl (ws->pipe[1], F_SETFD, fcntl (ws->pipe[1], F_GETFD) | FD_CLOEXEC);
 #endif
-#if !defined(LWIP_SOCKET)
+#if !DDSI_WAITSET_NO_TRIGGER
   FD_SET (ws->set.fds[0], &ws->ctx.rdset);
 #endif
 #if !defined(_WIN32)
@@ -993,7 +999,7 @@ void ddsi_sock_waitset_free (struct ddsi_sock_waitset * ws)
 #if defined(_WIN32)
   closesocket (ws->pipe[0]);
   closesocket (ws->pipe[1]);
-#elif !defined(LWIP_SOCKET)
+#elif !DDSI_WAITSET_NO_TRIGGER
   (void) close (ws->pipe[0]);
   (void) close (ws->pipe[1]);
 #endif
@@ -1008,7 +1014,7 @@ void ddsi_sock_waitset_free (struct ddsi_sock_waitset * ws)
 
 void ddsi_sock_waitset_trigger (struct ddsi_sock_waitset * ws)
 {
-#if defined(LWIP_SOCKET)
+#if DDSI_WAITSET_NO_TRIGGER
   (void)ws;
 #else
   char buf = 0;
@@ -1023,7 +1029,7 @@ void ddsi_sock_waitset_trigger (struct ddsi_sock_waitset * ws)
   {
     DDS_WARNING("ddsi_sock_waitset_trigger: write failed on trigger pipe\n");
   }
-#endif /* defined(LWIP_SOCKET) */
+#endif /* DDSI_WAITSET_NO_TRIGGER */
 }
 
 int ddsi_sock_waitset_add (struct ddsi_sock_waitset * ws, struct ddsi_tran_conn * conn)
@@ -1138,7 +1144,7 @@ struct ddsi_sock_waitset_ctx * ddsi_sock_waitset_wait (struct ddsi_sock_waitset 
 
   rdset = &ctx->rdset;
   FD_ZERO (rdset);
-#if !defined(LWIP_SOCKET)
+#if !DDSI_WAITSET_NO_TRIGGER
   for (u = 0; u < dst->n; u++)
   {
     FD_SET (dst->fds[u], rdset);
@@ -1150,12 +1156,16 @@ struct ddsi_sock_waitset_ctx * ddsi_sock_waitset_wait (struct ddsi_sock_waitset 
     FD_SET (dst->fds[u], rdset);
     DDSRT_WARNING_GNUC_ON(sign-conversion)
   }
-#endif /* !defined(LWIP_SOCKET) */
+#endif /* !DDSI_WAITSET_NO_TRIGGER */
 
   dds_return_t rc;
   do
   {
+  #if DDSRT_WITH_NINTENDO_3DS
+    rc = ddsrt_select (fdmax, rdset, NULL, NULL, DDS_MSECS (100));
+  #else
     rc = ddsrt_select (fdmax, rdset, NULL, NULL, DDS_INFINITY);
+  #endif
     if (rc < 0 && rc != DDS_RETCODE_INTERRUPTED && rc != DDS_RETCODE_TRY_AGAIN)
     {
       DDS_WARNING("ddsi_sock_waitset_wait: select failed, retcode = %"PRId32, rc);
@@ -1167,7 +1177,7 @@ struct ddsi_sock_waitset_ctx * ddsi_sock_waitset_wait (struct ddsi_sock_waitset 
   {
     /* this simply skips the trigger fd */
     ctx->index = 1;
-#if !defined(LWIP_SOCKET)
+#if !DDSI_WAITSET_NO_TRIGGER
     if (FD_ISSET (dst->fds[0], rdset))
     {
       char buf;
@@ -1183,14 +1193,14 @@ struct ddsi_sock_waitset_ctx * ddsi_sock_waitset_wait (struct ddsi_sock_waitset 
         assert (0);
       }
     }
-#endif /* !defined(LWIP_SOCKET) */
+#endif /* !DDSI_WAITSET_NO_TRIGGER */
     return ctx;
   }
 
   return NULL;
 }
 
-#if defined(LWIP_SOCKET)
+#if DDSI_WAITSET_NO_TRIGGER
 DDSRT_WARNING_GNUC_OFF(sign-conversion)
 #endif
 
@@ -1200,7 +1210,7 @@ int ddsi_sock_waitset_next_event (struct ddsi_sock_waitset_ctx * ctx, struct dds
   {
     unsigned idx = ctx->index++;
     ddsrt_socket_t fd = ctx->set.fds[idx];
-#if !defined(LWIP_SOCKET) /* && !defined(__ZEPHYR__) */
+#if !DDSI_WAITSET_NO_TRIGGER /* && !defined(__ZEPHYR__) */
     assert(idx > 0);
 #endif
     if (FD_ISSET (fd, &ctx->rdset))
@@ -1213,7 +1223,7 @@ int ddsi_sock_waitset_next_event (struct ddsi_sock_waitset_ctx * ctx, struct dds
   return -1;
 }
 
-#if defined(LWIP_SOCKET)
+#if DDSI_WAITSET_NO_TRIGGER
 DDSRT_WARNING_GNUC_ON(sign-conversion)
 #endif
 

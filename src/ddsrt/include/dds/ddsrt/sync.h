@@ -19,6 +19,8 @@
 
 #if DDSRT_WITH_FREERTOS
 #include "dds/ddsrt/sync/freertos.h"
+#elif DDSRT_WITH_NINTENDO_3DS
+#include "dds/ddsrt/sync/3ds.h"
 #elif _WIN32
 #include "dds/ddsrt/sync/windows.h"
 #elif __SunOS_5_6

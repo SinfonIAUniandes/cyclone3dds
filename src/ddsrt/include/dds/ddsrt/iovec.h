@@ -11,7 +11,17 @@
 #ifndef DDSRT_IOVEC_H
 #define DDSRT_IOVEC_H
 
-#if _WIN32
+#if DDSRT_WITH_NINTENDO_3DS
+#include <stddef.h>
+
+typedef struct ddsrt_iovec {
+  void *iov_base;
+  size_t iov_len;
+} ddsrt_iovec_t;
+
+typedef size_t ddsrt_iov_len_t;
+typedef size_t ddsrt_msg_iovlen_t;
+#elif _WIN32
 typedef unsigned ddsrt_iov_len_t;
 typedef struct ddsrt_iovec {
   ddsrt_iov_len_t iov_len;

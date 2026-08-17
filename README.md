@@ -10,6 +10,12 @@
 
 # Eclipse Cyclone DDS
 
+## Nintendo 3DS Port
+
+An experimental static devkitARM/libctru port lives in
+[ports/3ds](ports/3ds). It is IPv4/UDP-only and intended for the sibling 3DS
+homebrew integration in this workspace.
+
 Eclipse Cyclone DDS is a very performant and robust open-source implementation of the [OMG DDS specification](https://www.omg.org/spec/DDS/1.4/About-DDS/).
 Cyclone DDS is developed completely in the open as an Eclipse IoT project (see [eclipse-cyclone-dds](https://projects.eclipse.org/projects/iot.cyclonedds)) with a growing list of [adopters](https://iot.eclipse.org/adopters/?#iot.cyclonedds) (if you're one of them, please add your [logo](https://github.com/EclipseFdn/iot.eclipse.org/issues/new?template=adopter_request.md)).
 It is a tier-1 middleware for the Robot Operating System [ROS 2](https://docs.ros.org/en/rolling/).

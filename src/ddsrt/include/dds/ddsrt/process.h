@@ -23,6 +23,10 @@ typedef TaskHandle_t ddsrt_pid_t; /* typedef void *TaskHandle_t */
 #define PRIdPID "p"
 #define DDSRT_HAVE_MULTI_PROCESS 0
 /* DDSRT_WITH_FREERTOS */
+#elif DDSRT_WITH_NINTENDO_3DS
+typedef uint32_t ddsrt_pid_t;
+#define PRIdPID PRIu32
+#define DDSRT_HAVE_MULTI_PROCESS 0
 #elif defined(_WIN32)
 typedef uint32_t ddsrt_pid_t;
 #define PRIdPID PRIu32

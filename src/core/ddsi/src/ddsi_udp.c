@@ -465,6 +465,17 @@ static dds_return_t setsockopt_pktinfo (struct ddsi_domaingv const * const gv, d
 
 static dds_return_t set_socket_buffer (struct ddsi_domaingv const * const gv, ddsrt_socket_t sock, int32_t socket_option, const char *socket_option_name, const char *name, const struct ddsi_config_socket_buf_size *config, uint32_t default_min_size)
 {
+#if DDSRT_WITH_NINTENDO_3DS
+  /* The 3DS SOC service exposes buffer options but cannot reliably query them. */
+  (void) gv;
+  (void) sock;
+  (void) socket_option;
+  (void) socket_option_name;
+  (void) config;
+  (void) default_min_size;
+  GVLOG (DDS_LC_CONFIG, "socket %s buffer size unavailable on Nintendo 3DS; using service default\n", name);
+  return DDS_RETCODE_OK;
+#else
   // if (min, max)=   and   initbuf=   then  request=  and  result=
   //    (def, def)          < defmin         defmin         whatever it is
   //    (def, N)            anything         N              whatever it is
@@ -530,6 +541,7 @@ static dds_return_t set_socket_buffer (struct ddsi_domaingv const * const gv, dd
   }
 
   return (rc < 0) ? rc : (actsize > (uint32_t) INT32_MAX) ? INT32_MAX : (int32_t) actsize;
+#endif
 }
 
 static dds_return_t set_rcvbuf (struct ddsi_domaingv const * const gv, ddsrt_socket_t sock, const struct ddsi_config_socket_buf_size *config)
